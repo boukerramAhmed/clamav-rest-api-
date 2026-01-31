@@ -1,0 +1,95 @@
+version: '3'
+
+vars:
+  APP_NAME: clamav-api
+  DOCKER_IMAGE: "{{.APP_NAME}}:latest"
+  PYTHON: python3
+  PORT: 8080
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install Python dependencies
+    cmds:
+      - "{{.PYTHON}} -m pip install -r requirements.txt"
+
+  run:
+    desc: Run the application with docker-compose
+    cmds:
+      - docker compose up --build -d
+
+  dev:
+    desc: Run locally with uvicorn (hot reload)
+    cmds:
+      - uvicorn app.main:app --host 0.0.0.0 --port {{.PORT}} --reload
+
+  build:
+    desc: Build the Docker image
+    cmds:
+      - docker build -t {{.DOCKER_IMAGE}} .
+
+  clean:
+    desc: Clean up cache and build artifacts
+    cmds:
+      - rm -rf __pycache__ .pytest_cache .mypy_cache
+      - find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+      - find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
+  lint:
+    desc: Run linting with ruff (if installed)
+    cmds:
+      - ruff check app/
+
+  format:
+    desc: Format code with ruff (if installed)
+    cmds:
+      - ruff format app/
+
+  test:
+    desc: Run all tests in Docker
+    cmds:
+      - docker compose exec  api pytest -v
+
+  test:unit:
+    desc: Run unit tests in Docker
+    cmds:
+      - docker compose exec api pytest tests/unit -v
+
+  test:integration:
+    desc: Run integration tests in Docker
+    cmds:
+      - docker compose exec api pytest tests/integration -v -s
+
+  test:cov:
+    desc: Run tests with coverage in Docker
+    cmds:
+      - docker compose run --rm --build api pytest --cov=app --cov-report=term-missing -v
+
+  test:local:
+    desc: Run all tests locally (no Docker)
+    cmds:
+      - pytest -v
+
+  up:
+    desc: Start all services with docker-compose
+    cmds:
+      - docker compose up -d
+
+  down:
+    desc: Stop all services
+    cmds:
+      - docker compose down
+
+  logs:
+    desc: View logs from all services
+    cmds:
+      - docker compose logs -f
+
+  restart:
+    desc: Restart all services
+    cmds:
+      - docker compose restart

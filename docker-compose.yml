@@ -1,0 +1,36 @@
+services:
+  clamav:
+    image: clamav/clamav:latest
+    platform: linux/amd64
+    container_name: clamav
+    restart: unless-stopped
+    ports: 
+    - "3310:3310"
+    volumes:
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  api:
+    build: .
+    container_name: clamav-api
+    restart: unless-stopped
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+    volumes:
+      - ./:/app
+    ports:
+      - "8080:8080"
+    environment:
+      - CLAMAV_TYPE=tcp
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+    depends_on:
+      clamav:
+        condition: service_healthy
+
+volumes:
+  clamav-db:
