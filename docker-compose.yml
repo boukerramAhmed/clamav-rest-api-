@@ -15,6 +15,13 @@ services:
       retries: 3
       start_period: 120s
 
+  redis:
+    image: redis:7-alpine
+    container_name: clamav-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
   api:
     build: .
     container_name: clamav-api
@@ -28,6 +35,8 @@ services:
       - CLAMAV_TYPE=tcp
       - CLAMAV_HOST=clamav
       - CLAMAV_PORT=3310
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       clamav:
         condition: service_healthy

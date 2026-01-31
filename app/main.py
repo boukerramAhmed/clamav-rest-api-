@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import scan
+from app.services.cache import cache_client
 from app.services.clamav_client import clamav_client
 
 # Configure logging
@@ -21,22 +22,32 @@ async def lifespan(app: FastAPI):
     """
     Startup and shutdown event handler.
 
-    Connects to ClamAV on startup and logs the connection status.
+    Connects to ClamAV and Redis on startup and logs the connection status.
     """
     # Startup
     logger.info("Starting ClamAV API...")
-    connected = clamav_client.connect()
-    if connected:
+
+    # Connect to ClamAV
+    clamav_connected = clamav_client.connect()
+    if clamav_connected:
         logger.info("ClamAV client connected successfully")
     else:
         logger.warning("Failed to connect to ClamAV, will retry on first request")
+
+    # Connect to Redis cache
+    cache_connected = cache_client.connect()
+    if cache_connected:
+        logger.info("Redis cache connected successfully")
+    else:
+        logger.warning("Failed to connect to Redis, caching disabled")
 
     yield
 
     # Shutdown
     logger.info("Shutting down ClamAV API...")
     clamav_client.disconnect()
-    logger.info("ClamAV client disconnected")
+    cache_client.disconnect()
+    logger.info("All clients disconnected")
 
 
 # Initialize FastAPI app

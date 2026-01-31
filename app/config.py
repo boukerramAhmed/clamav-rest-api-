@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     max_files: int = 10
     upload_timeout: int = 300
 
+    # Redis Cache Configuration
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    cache_ttl: int = 86400  # 24 hours
+    cache_enabled: bool = True
+
     # Application Configuration
     app_name: str = "ClamAV API"
     app_version: str = "1.0.0"

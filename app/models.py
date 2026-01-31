@@ -14,6 +14,7 @@ class FileScanResult(BaseModel):
     virus_signature: Optional[str] = Field(None, description="Virus signature if infected")
     scan_time_seconds: float = Field(..., description="Time taken to scan in seconds")
     timestamp: datetime = Field(..., description="Scan timestamp")
+    cached: bool = Field(False, description="Whether result was from cache")
 
     class Config:
         json_schema_extra = {
