@@ -75,6 +75,7 @@ class HealthResponse(BaseModel):
 
     status: str = Field(..., description="Health status: healthy or unhealthy")
     message: str = Field(..., description="Status message")
+    services: Optional[dict] = Field(None, description="Status of individual services")
 
 
 class VersionResponse(BaseModel):
@@ -82,3 +83,52 @@ class VersionResponse(BaseModel):
 
     api_version: str = Field(..., description="API version")
     clamav_version: str = Field(..., description="ClamAV version")
+
+
+class S3ScanRequest(BaseModel):
+    """Request to scan a file from S3"""
+
+    s3_key: str = Field(..., description="S3 object key of the file to scan")
+    kafka_topic: Optional[str] = Field(None, description="Kafka topic to send scan result to (uses default if not specified)")
+    s3_bucket: Optional[str] = Field(None, description="S3 bucket name (uses default if not specified)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "s3_key": "uploads/document.pdf",
+                "kafka_topic": "scan-results",
+            }
+        }
+
+
+class S3RabbitMQScanRequest(BaseModel):
+    """Request to scan a file from S3 and publish result to RabbitMQ"""
+
+    s3_key: str = Field(..., description="S3 object key of the file to scan")
+    rabbitmq_queue: Optional[str] = Field(None, description="RabbitMQ queue to send scan result to (uses default if not specified)")
+    s3_bucket: Optional[str] = Field(None, description="S3 bucket name (uses default if not specified)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "s3_key": "uploads/document.pdf",
+                "rabbitmq_queue": "scan-results",
+            }
+        }
+
+
+class S3ScanAccepted(BaseModel):
+    """Response when S3 scan request is accepted"""
+
+    request_id: str = Field(..., description="Unique request ID for tracking")
+    status: str = Field(default="accepted", description="Request status")
+    message: str = Field(..., description="Status message")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "request_id": "abc123-def456-789",
+                "status": "accepted",
+                "message": "Scan request accepted. Result will be sent to Kafka topic 'scan-results'",
+            }
+        }
