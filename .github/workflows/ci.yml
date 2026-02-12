@@ -1,0 +1,57 @@
+name: CI - Lint & Security
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  lint:
+    name: Flake8 Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install flake8
+
+      - name: Run flake8
+        run: flake8 app/ tests/ --max-line-length=120 --extend-ignore=E203
+
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install bandit safety
+
+      - name: Run bandit (code security)
+        run: bandit -r app/ -f json -o bandit-report.json || true
+
+      - name: Display bandit results
+        if: always()
+        run: bandit -r app/ -ll
+
+      - name: Run safety (dependency vulnerabilities)
+        run: safety check -r requirements.txt
