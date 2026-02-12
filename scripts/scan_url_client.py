@@ -19,13 +19,23 @@ from botocore.config import Config as BotoConfig
 def main():
     parser = argparse.ArgumentParser(description="Scan a file via presigned S3 URL")
     parser.add_argument("file", help="Path to the file to scan")
-    parser.add_argument("--api-url", default="http://localhost:8080", help="ClamAV API base URL")
-    parser.add_argument("--s3-endpoint", default="http://localhost:9000", help="S3/MinIO endpoint")
+    parser.add_argument(
+        "--api-url", default="http://localhost:8080", help="ClamAV API base URL"
+    )
+    parser.add_argument(
+        "--s3-endpoint", default="http://localhost:9000", help="S3/MinIO endpoint"
+    )
     parser.add_argument("--s3-access-key", default="minioadmin", help="S3 access key")
     parser.add_argument("--s3-secret-key", default="minioadmin", help="S3 secret key")
     parser.add_argument("--s3-bucket", default="scans", help="S3 bucket name")
-    parser.add_argument("--presigned-endpoint", default="http://minio:9000", help="Endpoint used in presigned URLs (Docker DNS)")
-    parser.add_argument("--url-expiry", type=int, default=3600, help="Presigned URL expiry in seconds")
+    parser.add_argument(
+        "--presigned-endpoint",
+        default="http://minio:9000",
+        help="Endpoint used in presigned URLs (Docker DNS)",
+    )
+    parser.add_argument(
+        "--url-expiry", type=int, default=3600, help="Presigned URL expiry in seconds"
+    )
     args = parser.parse_args()
 
     # 1. Create S3 client
@@ -71,7 +81,9 @@ def main():
     # 4. Send scan request to the API
     scan_endpoint = f"{args.api_url}/api/v1/scan/url"
     print(f"\nSending scan request to {scan_endpoint} ...")
-    response = httpx.post(scan_endpoint, json={"presigned_url": presigned_url}, timeout=60)
+    response = httpx.post(
+        scan_endpoint, json={"presigned_url": presigned_url}, timeout=60
+    )
 
     # 5. Print result
     print(f"Status code: {response.status_code}\n")

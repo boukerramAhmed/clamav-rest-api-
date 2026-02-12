@@ -1,4 +1,3 @@
-import io
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 
@@ -105,7 +104,9 @@ class TestScanEndpoint:
             None,
         )
 
-        files = {"files": ("malware.exe", b"infected content", "application/octet-stream")}
+        files = {
+            "files": ("malware.exe", b"infected content", "application/octet-stream")
+        }
         response = client.post("/api/v1/scan", files=files)
 
         assert response.status_code == 200

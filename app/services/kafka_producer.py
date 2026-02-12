@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from typing import Any, Optional, Set
@@ -13,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 class TopicNotFoundError(Exception):
     """Raised when a Kafka topic does not exist"""
+
     pass
 
 
@@ -93,7 +93,9 @@ class KafkaProducerClient:
         self._topics_cache.clear()
         logger.info("Disconnected from Kafka")
 
-    async def send_result(self, topic: str, result: dict[str, Any], key: Optional[str] = None) -> bool:
+    async def send_result(
+        self, topic: str, result: dict[str, Any], key: Optional[str] = None
+    ) -> bool:
         """
         Send scan result to Kafka topic.
 

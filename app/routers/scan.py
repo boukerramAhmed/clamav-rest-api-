@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import io
 import logging
@@ -22,7 +21,7 @@ from app.models import (
 )
 from app.services.cache import cache_client
 from app.services.clamav_client import clamav_client
-from app.services.kafka_producer import TopicNotFoundError, kafka_producer
+from app.services.kafka_producer import kafka_producer
 from app.services.rabbitmq_producer import rabbitmq_producer
 from app.services.s3_client import s3_client
 
@@ -69,16 +68,18 @@ async def scan_files(files: List[UploadFile] = File(...)):
 
         # Validate file size
         if len(file_content) > settings.max_file_size:
-            results.append(FileScanResult(
-                filename=filename,
-                size_bytes=len(file_content),
-                sha256_hash="",
-                status="error",
-                virus_signature=None,
-                scan_time_seconds=0,
-                timestamp=datetime.utcnow(),
-                cached=False,
-            ))
+            results.append(
+                FileScanResult(
+                    filename=filename,
+                    size_bytes=len(file_content),
+                    sha256_hash="",
+                    status="error",
+                    virus_signature=None,
+                    scan_time_seconds=0,
+                    timestamp=datetime.utcnow(),
+                    cached=False,
+                )
+            )
             error_count += 1
             logger.warning(
                 f"File {filename} exceeds max size of {settings.max_file_size} bytes"
@@ -184,6 +185,7 @@ async def scan_presigned_url(request: PresignedUrlScanRequest):
         filename = content_disposition.split("filename=")[-1].strip('" ')
     else:
         from urllib.parse import urlparse, unquote
+
         url_path = urlparse(request.presigned_url).path
         if url_path:
             filename = unquote(url_path.split("/")[-1]) or "unknown"
@@ -192,7 +194,8 @@ async def scan_presigned_url(request: PresignedUrlScanRequest):
     if len(file_content) > settings.max_file_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File size ({len(file_content)} bytes) exceeds maximum allowed size ({settings.max_file_size} bytes)",
+            detail=f"File size ({len(file_content)} bytes) exceeds maximum "
+            f"allowed size ({settings.max_file_size} bytes)",
         )
 
     # Calculate SHA256 hash
@@ -241,7 +244,9 @@ async def scan_presigned_url(request: PresignedUrlScanRequest):
         )
 
 
-async def process_s3_scan(request_id: str, s3_key: str, s3_bucket: str, kafka_topic: str):
+async def process_s3_scan(
+    request_id: str, s3_key: str, s3_bucket: str, kafka_topic: str
+):
     """
     Background task to process S3 file scan.
 
@@ -321,7 +326,9 @@ async def process_s3_scan(request_id: str, s3_key: str, s3_bucket: str, kafka_to
         result_dict["timestamp"] = result_dict["timestamp"].isoformat()
 
         await kafka_producer.send_result(kafka_topic, result_dict)
-        logger.info(f"[{request_id}] Scan complete, sent result to Kafka (status: {result.status})")
+        logger.info(
+            f"[{request_id}] Scan complete, sent result to Kafka (status: {result.status})"
+        )
 
     except Exception as e:
         logger.error(f"[{request_id}] Unexpected error: {e}")
@@ -339,7 +346,9 @@ async def process_s3_scan(request_id: str, s3_key: str, s3_bucket: str, kafka_to
             logger.error(f"[{request_id}] Failed to send error to Kafka: {kafka_error}")
 
 
-async def process_s3_scan_rabbitmq(request_id: str, s3_key: str, s3_bucket: str, rabbitmq_queue: str):
+async def process_s3_scan_rabbitmq(
+    request_id: str, s3_key: str, s3_bucket: str, rabbitmq_queue: str
+):
     """
     Background task to process S3 file scan and publish result to RabbitMQ.
 
@@ -419,7 +428,9 @@ async def process_s3_scan_rabbitmq(request_id: str, s3_key: str, s3_bucket: str,
         result_dict["timestamp"] = result_dict["timestamp"].isoformat()
 
         await rabbitmq_producer.send_result(result_dict, rabbitmq_queue)
-        logger.info(f"[{request_id}] Scan complete, sent result to RabbitMQ (status: {result.status})")
+        logger.info(
+            f"[{request_id}] Scan complete, sent result to RabbitMQ (status: {result.status})"
+        )
 
     except Exception as e:
         logger.error(f"[{request_id}] Unexpected error: {e}")
@@ -434,7 +445,9 @@ async def process_s3_scan_rabbitmq(request_id: str, s3_key: str, s3_bucket: str,
         try:
             await rabbitmq_producer.send_result(error_result, rabbitmq_queue)
         except Exception as rabbitmq_error:
-            logger.error(f"[{request_id}] Failed to send error to RabbitMQ: {rabbitmq_error}")
+            logger.error(
+                f"[{request_id}] Failed to send error to RabbitMQ: {rabbitmq_error}"
+            )
 
 
 @router.post("/scan/kafka", response_model=S3ScanAccepted, status_code=202)
@@ -502,7 +515,9 @@ async def scan_s3_file(request: S3ScanRequest, background_tasks: BackgroundTasks
         kafka_topic,
     )
 
-    logger.info(f"[{request_id}] Accepted scan request for s3://{s3_bucket}/{request.s3_key}")
+    logger.info(
+        f"[{request_id}] Accepted scan request for s3://{s3_bucket}/{request.s3_key}"
+    )
 
     return S3ScanAccepted(
         request_id=request_id,
@@ -512,7 +527,9 @@ async def scan_s3_file(request: S3ScanRequest, background_tasks: BackgroundTasks
 
 
 @router.post("/scan/rabbitmq", response_model=S3ScanAccepted, status_code=202)
-async def scan_s3_file_rabbitmq(request: S3RabbitMQScanRequest, background_tasks: BackgroundTasks):
+async def scan_s3_file_rabbitmq(
+    request: S3RabbitMQScanRequest, background_tasks: BackgroundTasks
+):
     """
     Scan a file from S3 asynchronously and publish result to RabbitMQ.
 
@@ -576,7 +593,9 @@ async def scan_s3_file_rabbitmq(request: S3RabbitMQScanRequest, background_tasks
         rabbitmq_queue,
     )
 
-    logger.info(f"[{request_id}] Accepted scan request for s3://{s3_bucket}/{request.s3_key} (RabbitMQ)")
+    logger.info(
+        f"[{request_id}] Accepted scan request for s3://{s3_bucket}/{request.s3_key} (RabbitMQ)"
+    )
 
     return S3ScanAccepted(
         request_id=request_id,
@@ -610,11 +629,17 @@ async def health_check():
         },
         "kafka": {
             "enabled": settings.enable_kafka,
-            "connected": kafka_producer.producer is not None if settings.enable_kafka else None,
+            "connected": (
+                kafka_producer.producer is not None if settings.enable_kafka else None
+            ),
         },
         "rabbitmq": {
             "enabled": settings.enable_rabbitmq,
-            "connected": rabbitmq_producer.channel is not None if settings.enable_rabbitmq else None,
+            "connected": (
+                rabbitmq_producer.channel is not None
+                if settings.enable_rabbitmq
+                else None
+            ),
         },
     }
 

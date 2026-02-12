@@ -28,7 +28,9 @@ class ClamAVClient:
         """
         try:
             if self.connection_type == "unix":
-                self.client = clamd.ClamdUnixSocket(filename=settings.clamav_unix_socket)
+                self.client = clamd.ClamdUnixSocket(
+                    filename=settings.clamav_unix_socket
+                )
             elif self.connection_type == "tcp":
                 self.client = clamd.ClamdNetworkSocket(
                     host=settings.clamav_host, port=settings.clamav_port

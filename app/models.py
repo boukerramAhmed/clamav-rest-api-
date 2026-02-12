@@ -11,7 +11,9 @@ class FileScanResult(BaseModel):
     size_bytes: int = Field(..., description="File size in bytes")
     sha256_hash: str = Field(..., description="SHA256 hash of the file")
     status: str = Field(..., description="Scan status: clean, infected, or error")
-    virus_signature: Optional[str] = Field(None, description="Virus signature if infected")
+    virus_signature: Optional[str] = Field(
+        None, description="Virus signature if infected"
+    )
     scan_time_seconds: float = Field(..., description="Time taken to scan in seconds")
     timestamp: datetime = Field(..., description="Scan timestamp")
     cached: bool = Field(False, description="Whether result was from cache")
@@ -37,7 +39,9 @@ class ScanResponse(BaseModel):
     clean_files: int = Field(..., description="Number of clean files")
     infected_files: int = Field(..., description="Number of infected files")
     error_files: int = Field(..., description="Number of files with scan errors")
-    results: List[FileScanResult] = Field(..., description="Detailed results for each file")
+    results: List[FileScanResult] = Field(
+        ..., description="Detailed results for each file"
+    )
 
     class Config:
         json_schema_extra = {
@@ -102,8 +106,13 @@ class S3ScanRequest(BaseModel):
     """Request to scan a file from S3"""
 
     s3_key: str = Field(..., description="S3 object key of the file to scan")
-    kafka_topic: Optional[str] = Field(None, description="Kafka topic to send scan result to (uses default if not specified)")
-    s3_bucket: Optional[str] = Field(None, description="S3 bucket name (uses default if not specified)")
+    kafka_topic: Optional[str] = Field(
+        None,
+        description="Kafka topic to send scan result to (uses default if not specified)",
+    )
+    s3_bucket: Optional[str] = Field(
+        None, description="S3 bucket name (uses default if not specified)"
+    )
 
     class Config:
         json_schema_extra = {
@@ -118,8 +127,13 @@ class S3RabbitMQScanRequest(BaseModel):
     """Request to scan a file from S3 and publish result to RabbitMQ"""
 
     s3_key: str = Field(..., description="S3 object key of the file to scan")
-    rabbitmq_queue: Optional[str] = Field(None, description="RabbitMQ queue to send scan result to (uses default if not specified)")
-    s3_bucket: Optional[str] = Field(None, description="S3 bucket name (uses default if not specified)")
+    rabbitmq_queue: Optional[str] = Field(
+        None,
+        description="RabbitMQ queue to send scan result to (uses default if not specified)",
+    )
+    s3_bucket: Optional[str] = Field(
+        None, description="S3 bucket name (uses default if not specified)"
+    )
 
     class Config:
         json_schema_extra = {

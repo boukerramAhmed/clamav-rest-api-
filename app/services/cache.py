@@ -34,7 +34,9 @@ class CacheClient:
                 decode_responses=True,
             )
             self.client.ping()
-            logger.info(f"Connected to Redis at {settings.redis_host}:{settings.redis_port}")
+            logger.info(
+                f"Connected to Redis at {settings.redis_host}:{settings.redis_port}"
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}")
@@ -62,7 +64,9 @@ class CacheClient:
             data = self.client.get(key)
             if data:
                 result_dict = json.loads(data)
-                result_dict["timestamp"] = datetime.fromisoformat(result_dict["timestamp"])
+                result_dict["timestamp"] = datetime.fromisoformat(
+                    result_dict["timestamp"]
+                )
                 return FileScanResult(**result_dict)
             return None
         except Exception as e:

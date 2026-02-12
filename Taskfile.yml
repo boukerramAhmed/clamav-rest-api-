@@ -65,6 +65,11 @@ tasks:
       - find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
       - find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
+  pre-commit:
+    desc: Run pre-commit checks (flake8 + black) on all files
+    cmds:
+      - pre-commit run --all-files
+
   lint:
     desc: Run linting with ruff (if installed)
     cmds:

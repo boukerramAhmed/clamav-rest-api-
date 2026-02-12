@@ -81,9 +81,7 @@ class RabbitMQProducer:
             logger.error(f"Unexpected error declaring queue {queue_name}: {e}")
             return False
 
-    async def send_result(
-        self, result: Dict[str, Any], queue_name: str = None
-    ) -> bool:
+    async def send_result(self, result: Dict[str, Any], queue_name: str = None) -> bool:
         """
         Publish scan result to RabbitMQ queue.
 

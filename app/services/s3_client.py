@@ -68,7 +68,9 @@ class S3Client:
             if error_code == "404" or error_code == "NotFound":
                 logger.warning(f"File {key} not found in bucket {bucket}")
             else:
-                logger.error(f"Error checking file {key} in {bucket}: {error_code} - {e}")
+                logger.error(
+                    f"Error checking file {key} in {bucket}: {error_code} - {e}"
+                )
             return False
         except Exception as e:
             logger.error(f"Unexpected error checking file {key}: {e}")
@@ -94,7 +96,9 @@ class S3Client:
         try:
             response = self.client.get_object(Bucket=bucket, Key=key)
             content = response["Body"].read()
-            logger.info(f"Downloaded file {key} from bucket {bucket} ({len(content)} bytes)")
+            logger.info(
+                f"Downloaded file {key} from bucket {bucket} ({len(content)} bytes)"
+            )
             return content
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
