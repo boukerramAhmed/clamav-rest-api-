@@ -85,6 +85,19 @@ class VersionResponse(BaseModel):
     clamav_version: str = Field(..., description="ClamAV version")
 
 
+class PresignedUrlScanRequest(BaseModel):
+    """Request to scan a file from a presigned S3 URL"""
+
+    presigned_url: str = Field(..., description="Presigned URL of the S3 object")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "presigned_url": "https://minio:9000/bucket/file.pdf?X-Amz-Algorithm=..."
+            }
+        }
+
+
 class S3ScanRequest(BaseModel):
     """Request to scan a file from S3"""
 

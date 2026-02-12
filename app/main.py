@@ -119,6 +119,7 @@ async def root():
         "description": "REST API for scanning files using ClamAV",
         "endpoints": {
             "scan": "POST /api/v1/scan",
+            "scan-url": "POST /api/v1/scan/url",
             "scan-s3": "POST /api/v1/scan-s3",
             "scan-s3-rabbitmq": "POST /api/v1/scan-s3-rabbitmq",
             "health": "GET /api/v1/health",

@@ -40,9 +40,9 @@ class Settings(BaseSettings):
     rabbitmq_queue: str = "scan-results"
 
     # Service Enable/Disable Flags
-    enable_kafka: bool = True
-    enable_rabbitmq: bool = True
-    enable_s3: bool = True
+    enable_kafka: bool = False
+    enable_rabbitmq: bool = False
+    enable_s3: bool = False
 
     # Application Configuration
     app_name: str = "ClamAV API"

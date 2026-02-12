@@ -6,12 +6,14 @@ import uuid
 from datetime import datetime
 from typing import List
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile, status
 
 from app.config import settings
 from app.models import (
     FileScanResult,
     HealthResponse,
+    PresignedUrlScanRequest,
     S3RabbitMQScanRequest,
     S3ScanAccepted,
     S3ScanRequest,
@@ -140,6 +142,103 @@ async def scan_files(files: List[UploadFile] = File(...)):
         error_files=error_count,
         results=results,
     )
+
+
+@router.post("/scan/url", response_model=ScanResponse)
+async def scan_presigned_url(request: PresignedUrlScanRequest):
+    """
+    Scan a file from a presigned S3 URL.
+
+    - **presigned_url**: Presigned URL of the S3 object to download and scan
+
+    Downloads the file, scans it with ClamAV, and returns the result directly.
+    """
+    if not clamav_client.client:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ClamAV service is not available",
+        )
+
+    # Download the file from the presigned URL
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(request.presigned_url, follow_redirects=True)
+            response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to download file from presigned URL: HTTP {e.response.status_code}",
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to download file from presigned URL: {e}",
+        )
+
+    file_content = response.content
+
+    # Extract filename from Content-Disposition header or URL path
+    filename = "unknown"
+    content_disposition = response.headers.get("content-disposition")
+    if content_disposition and "filename=" in content_disposition:
+        filename = content_disposition.split("filename=")[-1].strip('" ')
+    else:
+        from urllib.parse import urlparse, unquote
+        url_path = urlparse(request.presigned_url).path
+        if url_path:
+            filename = unquote(url_path.split("/")[-1]) or "unknown"
+
+    # Validate file size
+    if len(file_content) > settings.max_file_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File size ({len(file_content)} bytes) exceeds maximum allowed size ({settings.max_file_size} bytes)",
+        )
+
+    # Calculate SHA256 hash
+    sha256_hash = hashlib.sha256(file_content).hexdigest()
+
+    # Check cache
+    cached_result = cache_client.get_scan_result(sha256_hash)
+    if cached_result:
+        cached_result.filename = filename
+        cached_result.timestamp = datetime.utcnow()
+        cached_result.cached = True
+        logger.info(f"Cache hit for {filename} (hash: {sha256_hash[:16]}...)")
+
+        return ScanResponse(
+            total_files=1,
+            clean_files=1 if cached_result.status == "clean" else 0,
+            infected_files=1 if cached_result.status == "infected" else 0,
+            error_files=1 if cached_result.status == "error" else 0,
+            results=[cached_result],
+        )
+
+    # Scan with ClamAV
+    try:
+        file_stream = io.BytesIO(file_content)
+        result, error = clamav_client.scan_stream(file_stream, filename)
+
+        if error:
+            logger.error(f"Scan error for {filename}: {error}")
+
+        # Cache the result
+        cache_client.set_scan_result(sha256_hash, result)
+
+        return ScanResponse(
+            total_files=1,
+            clean_files=1 if result.status == "clean" else 0,
+            infected_files=1 if result.status == "infected" else 0,
+            error_files=1 if result.status == "error" else 0,
+            results=[result],
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error scanning {filename}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while scanning the file",
+        )
 
 
 async def process_s3_scan(request_id: str, s3_key: str, s3_bucket: str, kafka_topic: str):
