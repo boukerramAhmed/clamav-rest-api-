@@ -1,0 +1,230 @@
+version: '3'
+
+vars:
+  APP_NAME: clamav-api
+  DOCKER_IMAGE: "{{.APP_NAME}}:latest"
+  PYTHON: python3
+  PORT: 8080
+  PROFILE: '{{.PROFILE | default ""}}'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install Python dependencies
+    cmds:
+      - "{{.PYTHON}} -m pip install -r requirements.txt"
+
+  run:
+    desc: Run the application with docker-compose (use PROFILE=kafka|rabbitmq|all for other services)
+    cmds:
+      - |
+        {{if .PROFILE}}
+        docker compose --profile {{.PROFILE}} up --build -d
+        {{else}}
+        docker compose up --build -d
+        {{end}}
+
+  run:simple:
+    desc: Run in simple mode (ClamAV, Redis, MinIO, API only - no message brokers)
+    cmds:
+      - docker compose up --build -d
+
+  run:kafka:
+    desc: Run with Kafka profile (ClamAV, Redis, MinIO, Kafka, Console)
+    cmds:
+      - docker compose --profile kafka up --build -d
+
+  run:rabbitmq:
+    desc: Run with RabbitMQ profile (ClamAV, Redis, MinIO, RabbitMQ)
+    cmds:
+      - docker compose --profile rabbitmq up --build -d
+
+  run:all:
+    desc: Run all services (includes both Kafka and RabbitMQ)
+    cmds:
+      - docker compose --profile all up --build -d
+
+  dev:
+    desc: Run locally with uvicorn (hot reload)
+    cmds:
+      - uvicorn app.main:app --host 0.0.0.0 --port {{.PORT}} --reload
+
+  build:
+    desc: Build the Docker image
+    cmds:
+      - docker build -t {{.DOCKER_IMAGE}} .
+
+  clean:
+    desc: Clean up cache and build artifacts
+    cmds:
+      - rm -rf __pycache__ .pytest_cache .mypy_cache
+      - find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+      - find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
+  lint:
+    desc: Run linting with ruff (if installed)
+    cmds:
+      - ruff check app/
+
+  format:
+    desc: Format code with ruff (if installed)
+    cmds:
+      - ruff format app/
+
+  test:
+    desc: Run all tests in Docker
+    cmds:
+      - docker compose exec  api pytest -v
+
+  test:unit:
+    desc: Run unit tests in Docker
+    cmds:
+      - docker compose exec api pytest tests/unit -v
+
+  test:integration:
+    desc: Run integration tests in Docker
+    cmds:
+      - docker compose exec api pytest tests/integration -v -s
+
+  test:cov:
+    desc: Run tests with coverage in Docker
+    cmds:
+      - docker compose run --rm --build api pytest --cov=app --cov-report=term-missing -v
+
+  test:local:
+    desc: Run all tests locally (no Docker)
+    cmds:
+      - pytest -v
+
+  up:
+    desc: Start services with docker-compose (use PROFILE=kafka|rabbitmq|all)
+    cmds:
+      - |
+        {{if .PROFILE}}
+        docker compose --profile {{.PROFILE}} up -d
+        {{else}}
+        docker compose up -d
+        {{end}}
+
+  up:simple:
+    desc: Start in simple mode (ClamAV, Redis, MinIO, API only - no message brokers)
+    cmds:
+      - docker compose up -d
+
+  up:kafka:
+    desc: Start with Kafka profile
+    cmds:
+      - docker compose --profile kafka up -d
+
+  up:rabbitmq:
+    desc: Start with RabbitMQ profile
+    cmds:
+      - docker compose --profile rabbitmq up -d
+
+  up:all:
+    desc: Start all services
+    cmds:
+      - docker compose --profile all up -d
+  down:all:
+    desc: Start all services
+    cmds:
+      - docker compose --profile all down
+  down:
+    desc: Stop all services (respects current profile)
+    cmds:
+      - |
+        {{if .PROFILE}}
+        docker compose --profile {{.PROFILE}} down
+        {{else}}
+        docker compose down
+        {{end}}
+
+  down:simple:
+    desc: Stop services in simple mode
+    cmds:
+      - docker compose down
+
+  logs:
+    desc: View logs from services (respects current profile)
+    cmds:
+      - |
+        {{if .PROFILE}}
+        docker compose --profile {{.PROFILE}} logs -f
+        {{else}}
+        docker compose logs -f
+        {{end}}
+
+  restart:
+    desc: Restart services (respects current profile)
+    cmds:
+      - |
+        {{if .PROFILE}}
+        docker compose --profile {{.PROFILE}} restart
+        {{else}}
+        docker compose restart
+        {{end}}
+
+  kafka:consume:
+    desc: Consume messages from Kafka topic (requires kafka profile, default topic scan-results)
+    vars:
+      TOPIC: '{{.TOPIC | default "scan-results"}}'
+      NUM: '{{.NUM | default "10"}}'
+    cmds:
+      - docker exec clamav-redpanda rpk topic consume {{.TOPIC}} --num {{.NUM}}
+
+  kafka:topics:
+    desc: List all Kafka topics (requires kafka profile)
+    cmds:
+      - docker exec clamav-redpanda rpk topic list
+
+  kafka:create:
+    desc: Create a Kafka topic (requires kafka profile)
+    vars:
+      TOPIC: '{{.TOPIC | default "scan-results"}}'
+    cmds:
+      - docker exec clamav-redpanda rpk topic create {{.TOPIC}}
+
+  kafka:create-topic:
+    desc: Initialize Kafka topics (requires kafka profile)
+    cmds:
+      - docker compose --profile kafka run kafka-init
+
+  rabbitmq:queues:
+    desc: List RabbitMQ queues (requires rabbitmq profile)
+    cmds:
+      - docker exec clamav-rabbitmq rabbitmqctl list_queues
+
+  rabbitmq:consumers:
+    desc: List RabbitMQ consumers (requires rabbitmq profile)
+    cmds:
+      - docker exec clamav-rabbitmq rabbitmqctl list_consumers
+
+  rabbitmq:purge:
+    desc: Purge a RabbitMQ queue (requires rabbitmq profile)
+    vars:
+      QUEUE: '{{.QUEUE | default "scan-results"}}'
+    cmds:
+      - docker exec clamav-rabbitmq rabbitmqctl purge_queue {{.QUEUE}}
+
+  rabbitmq:messages:
+    desc: List messages in a RabbitMQ queue (requires rabbitmq profile)
+    vars:
+      QUEUE: '{{.QUEUE | default "scan-results"}}'
+      COUNT: '{{.COUNT | default "10"}}'
+    cmds:
+      - curl -s -u guest:guest -X POST http://localhost:15672/api/queues/%2F/{{.QUEUE}}/get -H "content-type:application/json" -d '{"ackmode":"nack_requeue_true","encoding":"auto","count":{{.COUNT}}}' | jq .
+
+  rabbitmq:run:
+    desc: Run RabbitMQ standalone with docker run (management UI at http://localhost:15672)
+    cmds:
+      - docker run -d --name rabbitmq-standalone -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+      - echo "RabbitMQ started. Access management UI at http://localhost:15672 (guest:guest)"
+
+  rabbitmq:stop:
+    desc: Stop the standalone RabbitMQ container
+    cmds:
+      - docker stop rabbitmq-standalone && docker rm rabbitmq-standalone || echo "Container not running"
